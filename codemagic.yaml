@@ -1,0 +1,64 @@
+# Automatically generated on 2022-08-04 UTC from https://codemagic.io/app/62e7efc68f829aa3799bbeea/settings
+# Note that this configuration is not an exact match to UI settings. Review and adjust as necessary.
+
+workflows:
+  firebase-distribution:
+    name: Firebase distribution
+    max_build_duration: 60
+    environment:
+      flutter: default
+      xcode: latest
+      cocoapods: default
+    scripts:
+      - |
+        # set up debug keystore
+        rm -f ~/.android/debug.keystore
+        keytool -genkeypair \
+          -alias androiddebugkey \
+          -keypass android \
+          -keystore ~/.android/debug.keystore \
+          -storepass android \
+          -dname 'CN=Android Debug,O=Android,C=US' \
+          -keyalg 'RSA' \
+          -keysize 2048 \
+          -validity 10000
+      - |
+        # set up local properties
+        echo "flutter.sdk=$HOME/programs/flutter" > "$FCI_BUILD_DIR/android/local.properties"
+      - flutter packages pub get
+      - flutter build appbundle --debug
+      - |
+        # generate universal apk signed with debug key
+        android-app-bundle build-universal-apk \
+          --bundle build/**/outputs/**/*.aab \
+          --ks ~/.android/debug.keystore \
+          --ks-pass android \
+          --ks-key-alias androiddebugkey \
+          --key-pass android
+      - find . -name "Podfile" -execdir pod install \;
+      - flutter build ios --debug --no-codesign
+      - flutter build ipa
+    artifacts:
+      - build/**/outputs/apk/**/*.apk
+      - build/**/outputs/bundle/**/*.aab
+      - build/**/outputs/**/mapping.txt
+      - build/ios/ipa/*.ipa
+      - /tmp/xcodebuild_logs/*.log
+      - '*.snap'
+      - build/windows/**/*.msix
+      - flutter_drive.log
+    publishing:
+      email:
+        recipients:
+          - manohar.nettem@gmail.com
+      firebase:
+        firebase_token: Encrypted(Z0FBQUFBQmk2OUJnNzlzR3BfZVQyc2FvOHd4aE52S0FDd0hRN0VFRWZZQVFlNWJFYlVYemVBV0R3dlVYMTl5YUZkU01XTHJlSi1xdXdwUnJIaU1Gb0FkckVwaS13UVhqeGxNU1haMlV2a3E4R0UwVk4wdlJqNDMydmxvNU9COXdfSXBKdXF2TEhoMWNBdmZWQ1ZNLXpoWElMdjVwbmRSUlBDSHowUU9Qb2dHLXVCN2txSm5tNFN5OXdPdU43RXhpSFp0RTZ4dE5qVE56RlZQdVduSXYtQWp6VWd6TWl6QzhrQT09)
+        ios:
+          app_id: 1:21317273596:ios:6cbe04f983e0a9bb96d479
+          groups:
+            - ios_test
+        android:
+          app_id: 1:21317273596:android:1bf52b5bdb77eea796d479
+          groups:
+            - test_team
+          artifact_type: apk
